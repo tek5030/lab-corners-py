@@ -13,6 +13,8 @@ Now, read the code in `CircleEstimator._ransac_estimator()`.
 The only thing you have to do to make this work is to remove the `break` and perform the correct test in the if-statement.
 Do it, and try it out!
 
+Tip: If the program runs really slow, you can manually override the maximum number of RANSAC iterations by setting `max_iterations` in the constructor of `CircleEstimator` to for example 500.
+
 
 ## Play around
 Now, the code is finished!

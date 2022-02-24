@@ -11,6 +11,9 @@ def run_corners_solution():
     # Connect to the camera.
     video_source = 0
     cap = cv2.VideoCapture(video_source)
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+
     if not cap.isOpened():
         print(f"Could not open video source {video_source}")
         return
@@ -208,15 +211,17 @@ class CornerDetector:
 class CircleEstimator:
     """A robust circle estimator based on circle point measurements"""
 
-    def __init__(self, p=0.99, distance_threshold=5.0):
+    def __init__(self, p=0.99, distance_threshold=5.0, max_iterations=np.iinfo(np.int32).max):
         """
         Constructs a circle estimator
 
         :param p: The desired probability of getting a good sample.
         :param distance_threshold: The maximum distance a good sample can have from the circle.
+        :param max_iterations: The maximum number of iterations (set lower if slow)
         """
         self._p = p
         self._distance_threshold = distance_threshold
+        self._max_iterations = max_iterations
 
     def estimate(self, points):
         """
@@ -257,15 +262,15 @@ class CircleEstimator:
         """Perform RANSAC estimation"""
 
         # Initialize maximum number of iterations.
-        max_iterations = np.iinfo(np.int32).max
+        num_iterations = self._max_iterations
 
         # Perform RANSAC
-        iterations = 0
+        iteration = 0
         best_circle = None
         best_num_inliers = 0
         best_is_inlier = np.array([], dtype=bool)
 
-        while iterations < max_iterations:
+        while iteration < num_iterations:
             # Determine test circle by drawing minimal number of samples.
             test_circle = Circle.from_points(*points[np.random.choice(len(points), size=3, replace=False)])
 
@@ -285,15 +290,20 @@ class CircleEstimator:
                 best_is_inlier = is_inlier
                 best_circle = test_circle
 
-                # Update max iterations.
+                # Adaptively update number of iterations.
                 inlier_ratio = best_num_inliers / len(points)
-                max_iterations = int(np.log(1.0 - self._p) / np.log(1.0 - inlier_ratio*inlier_ratio*inlier_ratio))
+                if inlier_ratio == 1.0:
+                    break
 
-            iterations += 1
+                num_iterations = np.minimum(
+                    int(np.log(1.0 - self._p) / np.log(1.0 - inlier_ratio**3)),
+                    self._max_iterations)
+
+            iteration += 1
 
         return CircleEstimate(
             circle=best_circle,
-            num_iterations=iterations,
+            num_iterations=iteration,
             num_inliers=best_num_inliers,
             is_inlier=best_is_inlier
         )
