@@ -15,7 +15,7 @@ def create_1d_gaussian_kernel(sigma, radius=0):
 
     length = 2 * radius + 1
     x = np.arange(0, length) - radius
-    kernel = (1 / (sigma * np.sqrt(2*np.pi))) * np.exp(-x * x / (2 * sigma * sigma))
+    kernel = (1 / (sigma * np.sqrt(2 * np.pi))) * np.exp(-x * x / (2 * sigma * sigma))
 
     return kernel, x
 

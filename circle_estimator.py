@@ -1,9 +1,10 @@
-from typing import NamedTuple
+from dataclasses import dataclass
 from circle import Circle
 import numpy as np
 
 
-class CircleEstimate(NamedTuple):
+@dataclass
+class CircleEstimate:
     """Datatype for circle estimate as a result from CircleEstimator"""
     circle: Circle = Circle()
     num_iterations: int = 0
@@ -18,7 +19,7 @@ def extract_inlier_points(estimate, points):
 class CircleEstimator:
     """A robust circle estimator based on circle point measurements"""
 
-    def __init__(self, p = 0.99, distance_threshold = 5.0):
+    def __init__(self, p=0.99, distance_threshold=5.0):
         """
         Constructs a circle estimator
 
@@ -44,21 +45,27 @@ class CircleEstimator:
             return CircleEstimate(circle=Circle.from_points(*points))
 
         # Estimate circle using RANSAC.
-        estimate = self._ransac_estimator(points)
+        ransac_estimate = self._ransac_estimator(points)
 
-        if estimate.num_inliers == 0:
-            return CircleEstimate()
+        # Check if valid result.
+        if ransac_estimate.num_inliers < 3:
+            return None
 
         # Extract inlier points.
-        inlier_pts = extract_inlier_points(estimate, points)
+        inlier_pts = extract_inlier_points(ransac_estimate, points)
 
         # Estimate circle based on all the inliers.
         refined_circle = self._least_squares_estimator(inlier_pts)
-        estimate._replace(circle=refined_circle)
 
-        return estimate
+        return CircleEstimate(
+            circle=refined_circle,
+            num_iterations=ransac_estimate.num_iterations,
+            num_inliers=ransac_estimate.num_inliers,
+            is_inlier=ransac_estimate.is_inlier
+        )
 
     def _ransac_estimator(self, points):
+        """Perform RANSAC estimation"""
 
         # Initialize maximum number of iterations.
         max_iterations = np.iinfo(np.int32).max
@@ -71,14 +78,17 @@ class CircleEstimator:
 
         while iterations < max_iterations:
             # Determine test circle by drawing minimal number of samples.
-            test_circle = Circle.from_points(*points[np.random.choice(len(points), 3)])
+            test_circle = Circle.from_points(*points[np.random.choice(len(points), size=3, replace=False)])
+
+            # Continue if the test circle was invalid.
+            if not test_circle:
+                continue
 
             # Count number of inliers.
             is_inlier = test_circle.distances(points) < self._distance_threshold
             test_num_inliers = np.count_nonzero(is_inlier)
 
             # Check if this estimate gave a better result.
-            # TODO 8: Remove break, and perform the correct test!
             if test_num_inliers > best_num_inliers:
                 # Update circle with largest inlier set.
                 best_num_inliers = test_num_inliers
@@ -87,12 +97,9 @@ class CircleEstimator:
 
                 # Update max iterations.
                 inlier_ratio = best_num_inliers / len(points)
-
-                # FIXME: dele på 0
-                max_iterations = int( np.log(1.0 - self._p) / np.log(1.0 - inlier_ratio*inlier_ratio*inlier_ratio))
+                max_iterations = int(np.log(1.0 - self._p) / np.log(1.0 - inlier_ratio*inlier_ratio*inlier_ratio))
 
             iterations += 1
-            # break
 
         return CircleEstimate(
             circle=best_circle,
@@ -102,23 +109,33 @@ class CircleEstimator:
         )
 
     def _least_squares_estimator(self, points):
+        """ Estimates the least squares solution for the parameters of a circle given the points.
 
-        # Least-squares problem has the form A*p=b.
+        The equations for the points (x_i, y_i) on the circle (x_c, y_c, r) is:
+            (x_i - x_c)^2 + (y_i - y_c)^2 = r^2
+
+        By multiplying out, we get the linear equations
+            (2*x_c)*x_i + (2*y_c)*y_i + (r^2 - x_c^2 - y_x^2) = x_i^2 + y_i^2
+
+        The least-squares problem then has the form A*p = b, where
+            A = [x_i, y_i, 1],
+            p = [2*x_c, 2*y_c, r^2 - x_c^2 - y_x^2]^T,
+            b = [x_i^2 + y_i^2]
+
+        by solving for p = [p_0, p_1, p_2], we get the following estimates for the circle parameters:
+            x_c = 0.5 * p_0,
+            y_c = 0.5 * p_1,
+            r = sqrt(p_2 + x_c^2 + y_c^2)
+        """
         # Construct A and b.
-        a = np.c_[points, np.ones(len(points))]
-        b = np.linalg.norm(points, axis=1)
+        A = np.c_[points, np.ones(len(points))]
+        b = np.sum(np.square(points), axis=1)
 
         # Determine solution for p.
-        p = np.linalg.lstsq(a, b)[0]
+        p = np.linalg.lstsq(A, b, rcond=None)[0]
 
         # Extract center point and radius from the parameter vector p.
         center_point = 0.5 * p[:2]
-        radius = np.sqrt(p[2] + np.linalg.norm(center_point))
+        radius = np.sqrt(p[2] + np.sum(np.square(center_point)))
 
         return Circle(center_point, radius)
-
-if __name__ == "__main__":
-    e = CircleEstimator()
-    points = np.asarray(((0, 5), (4, 1), (0, -3)))
-    c = e.estimate(points)
-    print(f"estimate: {c.circle}")

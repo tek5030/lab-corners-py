@@ -1,4 +1,3 @@
-# Import libraries
 import cv2
 import numpy as np
 import timeit
@@ -17,20 +16,20 @@ def draw_corner_result(img, keypoints, duration):
     cv2.drawKeypoints(img, keypoints, img, (0, 255, 0))
 
 
-def draw_circle_result(img, keypoints, circle, duration):
+def draw_circle_result(img, keypoints, circle_estimate, duration):
     # If not a result
-    if circle.num_inliers == 0:
+    if not circle_estimate:
         return
 
     cv2.putText(img, f"circle time: {duration:.2f}", (10, 40), cv2.FONT_HERSHEY_PLAIN, 2.0, (0, 255, 0))
 
     # Extract and draw circle point inliers
-    inlier_pts = extract_inlier_points(circle, keypoints)
+    inlier_pts = extract_inlier_points(circle_estimate, keypoints)
     cv2.drawKeypoints(img, inlier_pts, img, (0, 0, 255))
 
     # Draw estimated circle
-    center = np.asarray(circle.circle.center,dtype=int)
-    radius = int(circle.circle.radius)
+    center = np.asarray(circle_estimate.circle.center, dtype=int)
+    radius = int(circle_estimate.circle.radius)
     cv2.circle(img, np.flip(center), radius, (0, 0, 255), cv2.LINE_4, cv2.LINE_AA)
 
 
@@ -82,14 +81,14 @@ def run_detection_solution():
         # Estimate circle based on detected corner points
         start = timeit.default_timer()
 
-        circle = estimator.estimate(points)
+        circle_estimate = estimator.estimate(points)
 
         end = timeit.default_timer()
         duration_circle = end - start
 
         # Show the results
         draw_corner_result(frame, keypoints, duration_corners)
-        draw_circle_result(frame, keypoints, circle, duration_circle)
+        draw_circle_result(frame, keypoints, circle_estimate, duration_circle)
         cv2.imshow(window_name, frame)
 
         # Update the GUI and wait a short time for input from the keyboard.

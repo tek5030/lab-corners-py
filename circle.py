@@ -13,37 +13,46 @@ class Circle:
         self._radius = radius
 
     @classmethod
-    def from_points(cls, p1, p2, p3):
+    def from_points(cls, point1, point2, point3):
         """
         Constructs a circle from three points on the circle.
 
-        :param p1: First point on the circle.
-        :param p2: Second point on the circle.
-        :param p3: Third point on the circle.
+        :param point1: First point on the circle.
+        :param point2: Second point on the circle.
+        :param point3: Third point on the circle.
         :return:
         """
-        p1 = np.asarray(p1)
-        p2 = np.asarray(p2)
-        p3 = np.asarray(p3)
+        point1 = np.asarray(point1)
+        point2 = np.asarray(point2)
+        point3 = np.asarray(point3)
 
-        homogeneous = lambda x: np.append(x, [1], axis=0)
-        hnormalized = lambda x: x[:-1] / x[-1]  # fixme dele på 0
+        def homogeneous(x):
+            return np.append(x, [1], axis=0)
 
-        # p1 and p2 define line_1 as their center line
-        m1 = 0.5 * (p1 + p2)
-        q1 = (m1[0] + p2[1] - p1[1],
-              m1[1] - p2[0] + p1[0])
-        line_1 = np.cross(homogeneous(m1), homogeneous(q1))
+        def hnormalized(x):
+            return x[:-1] / x[-1]
 
-        #  p2 and p3 define the line_2 as their center line
-        m2 = 0.5 * (p2 + p3)
-        q2 = (m2[0] + p3[1] - p2[1],
-              m2[1] - p3[0] + p2[0])
-        line_2 = np.cross(homogeneous(m2), homogeneous(q2))
-        #
-        #  Determine circle
-        center = hnormalized(np.cross(line_1, line_2))
-        radius = np.linalg.norm(p1 - center)
+        def center_line(p1, p2):
+            m1 = 0.5 * (p1 + p2)
+            q1 = (m1[0] + p2[1] - p1[1],
+                  m1[1] - p2[0] + p1[0])
+            return np.cross(homogeneous(m1), homogeneous(q1))
+
+        # Compute homogeneous center lines.
+        line_1 = center_line(point1, point2)
+        line_2 = center_line(point2, point3)
+
+        # Compute homogenous center point.
+        center_h = np.cross(line_1, line_2)
+
+        # Co-linear points will result in a center at infinity,
+        # so return invalid circle in that case.
+        if center_h[-1] == 0:
+            return None
+
+        # Construct circle.
+        center = hnormalized(center_h)
+        radius = np.linalg.norm(point1 - center)
         return cls(center, radius)
 
     @property
@@ -72,7 +81,7 @@ class Circle:
 
         if points.ndim == 1:
             points = points[np.newaxis, :]
-        #
+
         if points.ndim != 2 or points.shape[1] != 2:
             raise ValueError(f"points.shape {points.shape} != nx2")
 

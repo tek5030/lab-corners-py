@@ -80,7 +80,8 @@ class CornerDetector:
 
         return keypoints, np.asarray(max_locations)
 
-    def _harris_metric(self, a, b, c):
+    @staticmethod
+    def _harris_metric(a, b, c):
         # TODO 4.1: Finish the Harris metric.
         # Compute the Harris metric for each pixel.
         alpha = 0.06
@@ -89,7 +90,8 @@ class CornerDetector:
 
         return det_m - alpha * trc_m * trc_m
 
-    def _harmonic_metric(self, a, b, c):
+    @staticmethod
+    def _harmonic_metric(a, b, c):
         # TODO 4.2 Finish the Harmonic Mean metric
         # Compute the Harmonic Mean metric for each pixel.
         det_m = a * c - b * b
@@ -97,7 +99,8 @@ class CornerDetector:
 
         return det_m * 1./trc_m
 
-    def _min_eigen_metric(self, a, b, c):
+    @staticmethod
+    def _min_eigen_metric(a, b, c):
         # TODO 4.3 Finish the minimum eigenvalue metric
         # Compute the Min. Eigen metric for each pixel.
         root = np.sqrt(4. * np.square(b) + np.square(a-c))
