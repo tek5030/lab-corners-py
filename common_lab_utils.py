@@ -1,4 +1,6 @@
+import cv2
 import numpy as np
+from dataclasses import dataclass
 
 
 class Circle:
@@ -89,3 +91,62 @@ class Circle:
 
     def __str__(self):
         return f"center: {self._center}, radius: {self._radius}"
+
+
+@dataclass
+class CircleEstimate:
+    """Datatype for circle estimate as a result from CircleEstimator"""
+    circle: Circle = Circle()
+    num_iterations: int = 0
+    num_inliers: int = 0
+    is_inlier: np.ndarray = np.array([], dtype=bool)
+
+
+def create_1d_gaussian_kernel(sigma, radius=0):
+    """
+    Creates a Nx1 gaussian filter kernel.
+
+    :param sigma: The sigma (standard deviation) parameter for the gaussian.
+    :param radius: The filter radius, so that N = 2*radius + 1. If set to 0, the radius will be computed so that radius = 3.5 * sigma.
+    :return: Nx1 gaussian filter kernel.
+    """
+    if radius <= 0:
+        radius = int(np.ceil(3.5 * sigma))
+
+    length = 2 * radius + 1
+    x = np.arange(0, length) - radius
+    kernel = (1 / (sigma * np.sqrt(2 * np.pi))) * np.exp(-x * x / (2 * sigma * sigma))
+
+    return kernel, x
+
+
+def draw_circle_result(img, keypoints, circle_estimate, duration):
+    # If not a result
+    if not circle_estimate:
+        return
+
+    cv2.putText(img, f"circle time: {duration:.2f}", (10, 40), cv2.FONT_HERSHEY_PLAIN, 2.0, (0, 255, 0))
+
+    # Extract and draw circle point inliers
+    inlier_pts = extract_inlier_points(circle_estimate, keypoints)
+    cv2.drawKeypoints(img, inlier_pts, img, (0, 0, 255))
+
+    # Draw estimated circle
+    center = np.asarray(circle_estimate.circle.center, dtype=int)
+    radius = int(circle_estimate.circle.radius)
+    cv2.circle(img, np.flip(center), radius, (0, 0, 255), cv2.LINE_4, cv2.LINE_AA)
+
+
+def draw_corner_result(img, keypoints, duration):
+    cv2.putText(img, f"corner time: {duration:.2f}", (10, 20), cv2.FONT_HERSHEY_PLAIN, 2.0, (0, 255, 0))
+    cv2.drawKeypoints(img, keypoints, img, (0, 255, 0))
+
+
+def extract_inlier_points(estimate, points):
+    return points[estimate.is_inlier]
+
+
+def retain_best(keypoints, num_to_keep):
+    num_to_keep = np.minimum(num_to_keep, len(keypoints))
+    best = np.argpartition([p.response for p in keypoints], -num_to_keep)[-num_to_keep:]
+    return best

@@ -1,6 +1,7 @@
 import numpy as np
 
-from circle_estimator import CircleEstimator
+from solution_corners import CircleEstimator
+
 
 def test_correct_result_for_minimal_problem():
     e = CircleEstimator()

@@ -1,6 +1,6 @@
 import numpy as np
 
-from circle import Circle
+from common_lab_utils import Circle
 
 
 def test_from_points():
