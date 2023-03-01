@@ -21,7 +21,7 @@ def run_corners_solution():
         print(f"Successfully opened video source {video_source}")
 
     # Create window
-    window_name = 'Lab: Estimating circles from corners'
+    window_name = 'Solution: Estimating circles from corners'
     cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
 
     # Construct the corner detector.
