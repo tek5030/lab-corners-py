@@ -1,6 +1,6 @@
 import cv2
 import numpy as np
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 
 class Circle:
@@ -99,7 +99,7 @@ class CircleEstimate:
     circle: Circle = Circle()
     num_iterations: int = 0
     num_inliers: int = 0
-    is_inlier: np.ndarray = np.array([], dtype=bool)
+    is_inlier: np.ndarray = field(default_factory=lambda: np.array(object=[], dtype=bool))
 
 
 def create_1d_gaussian_kernel(sigma, radius=0):
